@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Проверка условий договоров поставки</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --muted:#667085; --line:#e3e6ec; --acc:#2456d6;
+          --ok:#1a7f4b; --chg:#b45309; --warn:#b42318; --warnbg:#fff4ed; --mark:#ffe58a; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.45 -apple-system,"Segoe UI",Roboto,Arial,sans-serif; }
+  header { background:var(--card); border-bottom:1px solid var(--line); padding:12px 20px; display:flex; flex-wrap:wrap; gap:12px 20px; align-items:center; }
+  h1 { font-size:17px; margin:0; margin-right:auto; }
+  h2 { font-size:15px; margin:0 0 8px; }
+  main { padding:16px 20px 60px; max-width:1400px; }
+  body.withviewer main { margin-right:min(460px,45vw); }
+  section { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:14px; margin-bottom:16px; }
+  button, .btn { font:inherit; border:1px solid var(--line); background:#fff; border-radius:6px; padding:6px 12px; cursor:pointer; color:var(--ink); }
+  button:hover, .btn:hover { border-color:var(--acc); }
+  button.primary, .btn.primary { background:var(--acc); color:#fff; border-color:var(--acc); }
+  input[type=date], input[type=text] { font:inherit; border:1px solid var(--line); border-radius:6px; padding:5px 8px; }
+  input[type=text] { width:min(560px,100%); }
+  label { color:var(--muted); }
+  .tablewrap { overflow-x:auto; }
+  table { border-collapse:collapse; width:100%; }
+  th { text-align:left; font-weight:600; color:var(--muted); font-size:12px; border-bottom:1px solid var(--line); padding:6px 8px; white-space:nowrap; }
+  td { vertical-align:top; padding:10px 8px; border-bottom:1px solid var(--line); }
+  tr.review td:first-child { box-shadow:inset 3px 0 0 var(--warn); }
+  .num { font-weight:600; font-size:15px; white-space:nowrap; }
+  .val { font-size:16px; font-weight:600; white-space:nowrap; }
+  .val.no_data { color:var(--muted); font-weight:500; }
+  .val.review { color:var(--warn); }
+  .badge { display:inline-block; font-size:11px; font-weight:600; border-radius:10px; padding:1px 8px; margin-left:6px; vertical-align:middle; }
+  .badge.ok { background:#e6f4ec; color:var(--ok); }
+  .badge.changed { background:#fdf0dc; color:var(--chg); }
+  .badge.review { background:#fde7e3; color:var(--warn); }
+  .badge.no_data { background:#eef0f4; color:var(--muted); }
+  .badge.prop { background:#eef2ff; color:#3949ab; }
+  .src, .was, .note { font-size:12px; color:var(--muted); margin-top:4px; max-width:340px; }
+  .src q { display:block; color:var(--ink); quotes:"«" "»"; border-left:2px solid var(--line); padding-left:6px; margin-top:2px; }
+  .note.warn, .flags li { color:var(--warn); }
+  .flags { margin:4px 0 0; padding-left:16px; font-size:12px; max-width:300px; }
+  a.srclink { color:var(--acc); text-decoration:none; border-bottom:1px dotted var(--acc); cursor:pointer; }
+  .prop { font-size:12px; margin-bottom:8px; max-width:300px; }
+  .prop b { display:block; }
+  .row { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:8px; }
+  .chip { font-size:12px; padding:3px 9px; border-radius:12px; background:#eef2ff; border:1px solid #d5ddff; cursor:pointer; }
+  #answer { white-space:pre-line; background:#f8faff; border:1px solid #d5ddff; border-radius:6px; padding:10px 12px; margin-top:8px; }
+  #answer .srcs { margin-top:8px; font-size:12px; color:var(--muted); display:block; }
+  #banner { background:#eef2ff; border:1px solid #d5ddff; border-radius:6px; padding:6px 10px; margin-bottom:8px; display:flex; gap:12px; align-items:center; }
+  #banner[hidden] { display:none; }
+  .muted { color:var(--muted); }
+  .empty { padding:24px; text-align:center; color:var(--muted); }
+  #drop { display:none; position:fixed; inset:0; background:rgba(36,86,214,.12); border:3px dashed var(--acc); z-index:50; align-items:center; justify-content:center; font-size:22px; color:var(--acc); }
+  body.dragging #drop { display:flex; }
+  #viewer { position:fixed; top:0; right:0; bottom:0; width:min(460px,45vw); background:var(--card); border-left:1px solid var(--line); box-shadow:-4px 0 16px rgba(0,0,0,.06); display:flex; flex-direction:column; z-index:20; }
+  #viewer[hidden] { display:none; }
+  #vhead { padding:12px 14px; border-bottom:1px solid var(--line); display:flex; gap:10px; align-items:flex-start; }
+  #vhead > div { flex:1; }
+  #vtitle { font-weight:600; }
+  #vbody { overflow:auto; padding:10px 14px 40px; flex:1; }
+  .para { display:flex; gap:10px; padding:5px 6px; border-radius:4px; }
+  .para .pn { flex:none; width:30px; color:var(--muted); font-size:11px; padding-top:2px; text-align:right; }
+  .para .pt { white-space:pre-wrap; }
+  .para.focus { background:#fff8dc; outline:1px solid #f1d98a; }
+  mark { background:var(--mark); padding:0 1px; border-radius:2px; }
+  details summary { cursor:pointer; color:var(--muted); font-size:12px; margin-top:4px; }
+  .small { font-size:12px; }
+  .tag { font-size:11px; color:var(--muted); }
+  td ul.docs { margin:0; padding-left:16px; font-size:12px; color:var(--muted); }
+</style>
+</head>
+<body>
+<div id="drop">Отпустите TXT-файлы, чтобы загрузить</div>
+<header>
+  <h1>Проверка условий договоров поставки</h1>
+  <label>Дата проверки <input type="date" id="asof" value="2026-03-10"></label>
+  <label class="btn primary">Загрузить TXT<input type="file" id="file" multiple accept=".txt,text/plain" hidden></label>
+  <button id="samples" title="Файлы из папки sample_documents">Загрузить учебные примеры</button>
+  <button id="clear">Очистить</button>
+</header>
+<main>
+  <section>
+    <h2>Договоры</h2>
+    <div id="banner" hidden></div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr id="rowhead"></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <div id="empty" class="empty">Нет договоров. Загрузите TXT-файлы (договоры, допсоглашения, письма) или нажмите «Загрузить учебные примеры».</div>
+  </section>
+
+  <section>
+    <h2>Вопросы</h2>
+    <div class="row">
+      <input type="text" id="q" placeholder="Например: срок поставки по договору … на дату …; сумма договора …; поставка раньше …">
+      <button class="primary" id="askbtn">Спросить</button>
+    </div>
+    <div class="row" id="chips"></div>
+    <div class="row">
+      <label>Фильтр: поставка раньше <input type="date" id="before" value="2026-04-01"></label>
+      <button id="early">Показать</button>
+      <span class="muted small">Дата в вопросе «на 10 марта 2026» заменяет дату проверки только для этого ответа.</span>
+    </div>
+    <div id="answer" hidden></div>
+  </section>
+
+  <section>
+    <h2>Загруженные документы</h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Файл</th><th>Тип (по содержанию)</th><th>Статус</th><th>Даты</th><th>Связан с договором</th><th>На дату проверки</th></tr></thead>
+        <tbody id="docs"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<aside id="viewer" hidden>
+  <div id="vhead"><div><div id="vtitle"></div><div id="vmeta" class="small muted"></div></div><button id="vclose">Закрыть</button></div>
+  <div id="vbody"></div>
+</aside>
+
+<script>
+const $ = s => document.querySelector(s);
+function el(tag, props, ...kids) {
+  const e = document.createElement(tag);
+  if (props) for (const [k, v] of Object.entries(props)) {
+    if (k === 'class') e.className = v; else if (k === 'text') e.textContent = v; else e.setAttribute(k, v);
+  }
+  kids.flat(Infinity).forEach(k => { if (k == null || k === false) return; e.append(k.nodeType ? k : document.createTextNode(String(k))); });
+  return e;
+}
+const fmtDate = iso => iso ? iso.split('-').reverse().join('.') : '';
+let STATE = null, FILTER = null, SRCS = [];
+
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || r.status);
+  return j;
+}
+const asOf = () => $('#asof').value || '2026-03-10';
+
+function srcLink(s, label) {
+  const i = SRCS.push(s) - 1;
+  return el('a', { href: '#', class: 'srclink', 'data-i': i }, label || `${s.file} · абзац ${s.para}${s.clause ? ' (п. ' + s.clause + ')' : ''}`);
+}
+document.addEventListener('click', e => {
+  const a = e.target.closest('a.srclink');
+  if (a) { e.preventDefault(); openSource(SRCS[+a.dataset.i]); }
+});
+
+async function openSource(s) {
+  const d = await api('/api/doc?id=' + encodeURIComponent(s.doc_id));
+  $('#viewer').hidden = false; document.body.classList.add('withviewer');
+  $('#vtitle').textContent = d.name; $('#vmeta').textContent = d.kind_label + ' · ' + d.status_label;
+  const box = $('#vbody'); box.replaceChildren();
+  const cps = Array.from(d.text);                 // смещения с сервера - в символах Unicode
+  let focus = null;
+  d.paragraphs.forEach(p => {
+    const t = el('span', { class: 'pt' });
+    if (s && s.para === p.idx) {
+      t.append(cps.slice(p.start, s.start).join(''), el('mark', { text: cps.slice(s.start, s.end).join('') }), cps.slice(s.end, p.end).join(''));
+    } else t.textContent = cps.slice(p.start, p.end).join('');
+    const div = el('div', { class: 'para' + (s && s.para === p.idx ? ' focus' : ''), id: 'para-' + p.idx }, el('span', { class: 'pn', text: '¶' + p.idx }), t);
+    if (s && s.para === p.idx) focus = div;
+    box.append(div);
+  });
+  if (focus) focus.scrollIntoView({ block: 'center', behavior: 'smooth' });
+}
+$('#vclose').onclick = () => { $('#viewer').hidden = true; document.body.classList.remove('withviewer'); };
+
+function fieldCell(f) {
+  const c = el('div');
+  const cls = f.status;
+  const badges = { ok: 'по договору', changed: 'изменено допсоглашением', review: 'нужна проверка', no_data: 'нет данных' };
+  const v = el('div', { class: 'val ' + cls }, f.display);
+  if (f.status !== 'no_data' && f.status !== 'review') v.append(el('span', { class: 'badge ' + cls, text: badges[cls] }));
+  if (f.status === 'review') v.append(el('span', { class: 'badge review', text: 'нужна проверка' }));
+  c.append(v);
+  if (f.source) {
+    c.append(el('div', { class: 'src' }, srcLink(f.source), el('q', { text: f.source.quote })));
+  }
+  if (f.status === 'changed') {
+    const ch = f.changed_by;
+    const w = el('div', { class: 'was' }, 'Изменил: ', ch.file, ch.number ? ` (№ ${ch.number})` : '', ', вступило в силу ', fmtDate(ch.effective), '.');
+    if (f.base) w.append(el('br'), 'Было: ', f.base.display, ' - ', srcLink(f.base.source));
+    c.append(w);
+  }
+  (f.alternatives || []).forEach(a => c.append(el('div', { class: 'was' }, 'Вариант: ', a.display, a.source ? [' - ', srcLink(a.source)] : '')));
+  (f.notes || []).forEach(n => c.append(el('div', { class: 'note' + (f.status === 'review' ? ' warn' : '') }, n)));
+  if (f.ignored && f.ignored.length) {
+    const d = el('details', null, el('summary', { text: 'Не принято за значение (' + f.ignored.length + ')' }));
+    f.ignored.forEach(i => d.append(el('div', { class: 'was' }, i.display, ': ', i.reason, ' - ', srcLink(i.source))));
+    c.append(d);
+  }
+  return c;
+}
+
+function propCell(r) {
+  const c = el('div');
+  if (!r.proposals.length) return el('span', { class: 'muted', text: 'нет' });
+  r.proposals.forEach(p => {
+    const fl = (STATE.fields.find(f => f.key === p.field) || { label: p.field }).label.toLowerCase();
+    const d = el('div', { class: 'prop' }, el('b', { text: p.label }),
+      fl + ' → ', el('b', { text: p.display, style: 'display:inline' }),
+      p.old_display ? ` (было ${p.old_display})` : '', ' ', p.source ? srcLink(p.source) : '');
+    if (p.source) d.append(el('div', { class: 'src' }, el('q', { text: p.source.quote })));
+    if (p.reason) d.append(el('div', { class: 'note warn', text: p.reason }));
+    c.append(d);
+  });
+  return c;
+}
+
+function renderContracts() {
+  // колонки полей берутся из STATE.fields (реестр FIELDS на сервере)
+  $('#rowhead').replaceChildren(...['Договор', 'Поставщик', ...STATE.fields.map(f => f.label + ' на дату проверки'),
+    'Несогласованные и не вступившие изменения', 'Проверка'].map(t => el('th', { text: t })));
+  const tb = $('#rows'); tb.replaceChildren(); SRCS = [];
+  let rows = STATE.contracts;
+  const total = rows.length;
+  if (FILTER) rows = rows.filter(r => FILTER.ids.has(r.id));
+  $('#empty').hidden = total > 0;
+  const bn = $('#banner');
+  if (FILTER) {
+    bn.hidden = false; bn.replaceChildren(`Фильтр: действующий срок поставки раньше ${fmtDate(FILTER.before)} - ${rows.length} из ${total}`,
+      el('button', { text: 'Сбросить фильтр' }));
+    bn.querySelector('button').onclick = () => { FILTER = null; renderContracts(); };
+  } else bn.hidden = true;
+  rows.forEach(r => {
+    const tr = el('tr', { class: r.need_review ? 'review' : '' });
+    tr.append(
+      el('td', null, el('div', { class: 'num', text: r.number }), r.number_source ? el('div', { class: 'tag' }, srcLink(r.number_source, r.file)) : r.file,
+        el('ul', { class: 'docs' }, r.related.map(d => el('li', null, d.file, ' - ', d.label)))),
+      el('td', null, r.supplier.value, r.supplier.source ? el('div', { class: 'src' }, srcLink(r.supplier.source)) : ''),
+      ...STATE.fields.map(f => el('td', null, fieldCell(r[f.key]))),
+      el('td', null, propCell(r)),
+      el('td', null, r.need_review ? [el('span', { class: 'badge review', text: 'нужна проверка' }), el('ul', { class: 'flags' }, r.flags.map(f => el('li', { text: f })))]
+        : el('span', { class: 'badge ok', text: 'без замечаний' })));
+    tb.append(tr);
+  });
+}
+
+function renderDocs() {
+  const tb = $('#docs'); tb.replaceChildren();
+  STATE.documents.forEach(d => {
+    const dates = [];
+    if (d.doc_date) dates.push('дата документа ' + fmtDate(d.doc_date));
+    if (d.signed_date) dates.push('подписан ' + fmtDate(d.signed_date));
+    if (d.effective) dates.push('вступает в силу ' + fmtDate(d.effective));
+    tb.append(el('tr', null,
+      el('td', null, el('a', { href: '#', class: 'plain' }, d.name)),
+      el('td', null, d.kind_label, d.number ? ` № ${d.number}` : ''),
+      el('td', null, d.status_label, d.status_source ? [' ', srcLink(d.status_source, '[основание]')] : ''),
+      el('td', { class: 'small' }, dates.join('; ')),
+      el('td', null, d.linked || (d.link_status ? el('span', { class: 'note warn', text: 'не связан' }) : '')),
+      el('td', null, d.state_label, d.notes.map(n => el('div', { class: 'note warn', text: n })),
+        d.effective_note && d.kind === 'amendment' && d.status === 'signed' && !d.effective ? el('div', { class: 'note warn', text: d.effective_note }) : '')));
+    const a = tb.lastChild.querySelector('a');
+    a.onclick = e => { e.preventDefault(); openSource({ doc_id: d.id, para: -1, start: 0, end: 0 }); };
+  });
+}
+
+function renderChips() {
+  const box = $('#chips'); box.replaceChildren();
+  STATE.contracts.slice(0, 3).forEach(r => {
+    if (r.number === 'нет данных') return;
+    [`Какой срок поставки действует по договору ${r.number} на ${fmtDate(asOf())}?`, `Какова сумма договора ${r.number}?`].forEach(q =>
+      box.append(el('span', { class: 'chip', text: q })));
+  });
+  box.querySelectorAll('.chip').forEach(c => c.onclick = () => { $('#q').value = c.textContent; ask(); });
+}
+
+function showAnswer(r) {
+  const a = $('#answer'); a.hidden = false; a.replaceChildren(r.answer);
+  const seen = new Set(), srcs = (r.sources || []).filter(s => { const k = s.doc_id + ':' + s.start; if (seen.has(k)) return false; seen.add(k); return true; });
+  if (srcs.length) a.append(el('span', { class: 'srcs' }, 'Источники: ', srcs.map((s, i) => [i ? ' · ' : '', srcLink(s)])));
+}
+
+async function load() {
+  STATE = await api('/api/state?as_of=' + asOf());
+  if (FILTER) FILTER.ids = new Set(FILTER.ids);
+  renderContracts(); renderDocs(); renderChips();
+}
+async function ask() {
+  const q = $('#q').value.trim(); if (!q) return;
+  try { showAnswer(await api('/api/ask?as_of=' + asOf() + '&q=' + encodeURIComponent(q))); } catch (e) { showAnswer({ answer: 'Ошибка: ' + e.message }); }
+}
+async function early() {
+  const before = $('#before').value; if (!before) return;
+  try {
+    const r = await api('/api/early?as_of=' + asOf() + '&before=' + before);
+    showAnswer(r);
+    FILTER = { before, ids: new Set(r.matches.map(m => m.id)) };
+    renderContracts();
+  } catch (e) { showAnswer({ answer: 'Ошибка: ' + e.message }); }
+}
+async function upload(files) {
+  const payload = [];
+  for (const f of files) {
+    const buf = new Uint8Array(await f.arrayBuffer());
+    let bin = ''; for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode.apply(null, buf.subarray(i, i + 0x8000));
+    payload.push({ name: f.name, b64: btoa(bin) });
+  }
+  const r = await api('/api/upload', { method: 'POST', body: JSON.stringify({ files: payload }) });
+  if (r.errors.length) alert(r.errors.join('\n'));
+  await load();
+}
+$('#file').onchange = async e => { await upload([...e.target.files]); e.target.value = ''; };
+$('#samples').onclick = async () => { await api('/api/samples', { method: 'POST', body: '{}' }); await load(); };
+$('#clear').onclick = async () => { await api('/api/clear', { method: 'POST', body: '{}' }); FILTER = null; $('#answer').hidden = true; await load(); };
+$('#asof').onchange = () => { load(); };
+$('#askbtn').onclick = ask;
+$('#q').onkeydown = e => { if (e.key === 'Enter') ask(); };
+$('#early').onclick = early;
+let dragDepth = 0;
+addEventListener('dragenter', e => { e.preventDefault(); dragDepth++; document.body.classList.add('dragging'); });
+addEventListener('dragleave', e => { dragDepth = Math.max(0, dragDepth - 1); if (!dragDepth) document.body.classList.remove('dragging'); });
+addEventListener('dragover', e => e.preventDefault());
+addEventListener('drop', async e => { e.preventDefault(); dragDepth = 0; document.body.classList.remove('dragging'); if (e.dataTransfer.files.length) await upload([...e.dataTransfer.files]); });
+load();
+</script>
+</body>
+</html>
